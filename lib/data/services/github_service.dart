@@ -283,65 +283,78 @@ class HttpGitHubService implements GitHubService {
   }) async {
     final cid = clientId ?? GitHubConfig.clientId;
     try {
-      final response = await _client.post(
-        Uri.parse(GitHubConfig.tokenEndpoint),
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Helm-App',
-        },
-        body: {
-          'client_id': cid,
-          'device_code': deviceCode,
-          'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
-        },
-      );
+      final response = await _client
+          .post(
+            Uri.parse(GitHubConfig.tokenEndpoint),
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'Helm-App',
+              'Connection': 'close',
+            },
+            body: {
+              'client_id': cid,
+              'device_code': deviceCode,
+              'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
+            },
+          )
+          .timeout(const Duration(seconds: 12));
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        if (data.containsKey('access_token')) {
-          return GitHubTokenResponse(
-            status: GitHubTokenStatus.success,
-            accessToken: data['access_token'] as String?,
-            tokenType: data['token_type'] as String?,
-            scope: data['scope'] as String?,
-          );
-        }
+      if (response.body.isNotEmpty) {
+        try {
+          final data = jsonDecode(response.body);
+          if (data is Map<String, dynamic>) {
+            if (data.containsKey('access_token')) {
+              return GitHubTokenResponse(
+                status: GitHubTokenStatus.success,
+                accessToken: data['access_token'] as String?,
+                tokenType: data['token_type'] as String?,
+                scope: data['scope'] as String?,
+              );
+            }
 
-        final error = data['error'] as String? ?? '';
-        switch (error) {
-          case 'authorization_pending':
-            return const GitHubTokenResponse(status: GitHubTokenStatus.pending);
-          case 'slow_down':
-            return GitHubTokenResponse(
-              status: GitHubTokenStatus.slowDown,
-              interval: data['interval'] as int? ?? 10,
-            );
-          case 'expired_token':
-            return const GitHubTokenResponse(
-              status: GitHubTokenStatus.expired,
-              errorMessage: 'The device code has expired. Please try again.',
-            );
-          case 'access_denied':
-            return const GitHubTokenResponse(
-              status: GitHubTokenStatus.accessDenied,
-              errorMessage: 'Login was cancelled on GitHub.',
-            );
-          default:
-            return GitHubTokenResponse(
-              status: GitHubTokenStatus.error,
-              errorMessage: data['error_description'] as String? ?? 'Authentication error',
-            );
+            final error = data['error'] as String? ?? '';
+            switch (error) {
+              case 'authorization_pending':
+                return const GitHubTokenResponse(status: GitHubTokenStatus.pending);
+              case 'slow_down':
+                return GitHubTokenResponse(
+                  status: GitHubTokenStatus.slowDown,
+                  interval: data['interval'] as int? ?? 10,
+                );
+              case 'expired_token':
+                return const GitHubTokenResponse(
+                  status: GitHubTokenStatus.expired,
+                  errorMessage: 'The device code has expired. Please try again.',
+                );
+              case 'access_denied':
+                return const GitHubTokenResponse(
+                  status: GitHubTokenStatus.accessDenied,
+                  errorMessage: 'Login was cancelled on GitHub.',
+                );
+              default:
+                if (error.isNotEmpty) {
+                  return GitHubTokenResponse(
+                    status: GitHubTokenStatus.error,
+                    errorMessage: data['error_description'] as String? ?? 'Authentication error',
+                  );
+                }
+            }
+          }
+        } catch (_) {
+          // If response body isn't JSON or parsing fails, fall through
         }
       }
-    } catch (e) {
-      return GitHubTokenResponse(
-        status: GitHubTokenStatus.error,
-        errorMessage: 'Network error: $e',
+    } catch (_) {
+      // Network hiccup, socket drop, or app backgrounding.
+      // Treat as transient and return pending so polling continues seamlessly.
+      return const GitHubTokenResponse(
+        status: GitHubTokenStatus.pending,
+        errorMessage: 'Connecting...',
       );
     }
     return const GitHubTokenResponse(
-      status: GitHubTokenStatus.error,
-      errorMessage: 'Failed to connect to GitHub token endpoint.',
+      status: GitHubTokenStatus.pending,
+      errorMessage: 'Connecting...',
     );
   }
 }

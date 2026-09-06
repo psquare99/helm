@@ -27,21 +27,24 @@ class GitHubDeviceLoginDialog extends StatefulWidget {
 }
 
 class _GitHubDeviceLoginDialogState extends State<GitHubDeviceLoginDialog>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   bool _isLoading = true;
   String? _errorMessage;
   GitHubDeviceCode? _deviceCode;
   bool _isSuccess = false;
   String? _authenticatedUserLogin;
   int _secondsRemaining = 900;
+  int _currentInterval = 5;
   Timer? _countdownTimer;
   bool _isPolling = false;
+  bool _isCheckingNow = false;
   bool _copied = false;
   late AnimationController _pulseAnim;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _pulseAnim = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -51,10 +54,19 @@ class _GitHubDeviceLoginDialogState extends State<GitHubDeviceLoginDialog>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _countdownTimer?.cancel();
     _isPolling = false;
     _pulseAnim.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _deviceCode != null && !_isSuccess) {
+      // User returned from browser; immediately verify authorization!
+      _pollOnce();
+    }
   }
 
   Future<void> _initDeviceFlow() async {
@@ -80,6 +92,7 @@ class _GitHubDeviceLoginDialogState extends State<GitHubDeviceLoginDialog>
       _isLoading = false;
       _deviceCode = code;
       _secondsRemaining = code.expiresIn;
+      _currentInterval = code.interval > 0 ? code.interval : 5;
     });
 
     // Automatically copy code to clipboard for user convenience
@@ -111,24 +124,35 @@ class _GitHubDeviceLoginDialogState extends State<GitHubDeviceLoginDialog>
 
   Future<void> _startPolling(GitHubDeviceCode code) async {
     _isPolling = true;
-    int currentInterval = code.interval > 0 ? code.interval : 5;
+    _currentInterval = code.interval > 0 ? code.interval : 5;
 
     while (_isPolling && mounted) {
-      await Future.delayed(Duration(seconds: currentInterval));
+      await Future.delayed(Duration(seconds: _currentInterval));
       if (!_isPolling || !mounted) break;
 
+      await _pollOnce();
+    }
+  }
+
+  Future<void> _pollOnce() async {
+    if (_deviceCode == null || _isSuccess || !mounted || _isCheckingNow) return;
+    setState(() => _isCheckingNow = true);
+
+    try {
       final res = await widget.controller.gitHubService.pollDeviceToken(
-        deviceCode: code.deviceCode,
+        deviceCode: _deviceCode!.deviceCode,
       );
 
-      if (!mounted) break;
+      if (!mounted) return;
 
       if (res.status == GitHubTokenStatus.success && res.accessToken != null) {
         _countdownTimer?.cancel();
         _isPolling = false;
 
-        // Save token to controller
-        await widget.controller.setGitHubToken(res.accessToken!);
+        // Fully log in with token so profile, avatar, and telemetry load
+        await widget.controller.loginWithGitHubToken(res.accessToken!);
+
+        if (!mounted) return;
 
         setState(() {
           _isSuccess = true;
@@ -140,20 +164,26 @@ class _GitHubDeviceLoginDialogState extends State<GitHubDeviceLoginDialog>
         if (mounted) {
           Navigator.of(context).pop(true);
         }
-        break;
       } else if (res.status == GitHubTokenStatus.slowDown) {
-        currentInterval = (res.interval ?? currentInterval) + 5;
-      } else if (res.status == GitHubTokenStatus.expired ||
-          res.status == GitHubTokenStatus.accessDenied ||
-          res.status == GitHubTokenStatus.error) {
+        _currentInterval += 5;
+      } else if (res.status == GitHubTokenStatus.accessDenied) {
         _countdownTimer?.cancel();
         _isPolling = false;
         setState(() {
-          _errorMessage = res.errorMessage ?? 'Authorization was not completed.';
+          _errorMessage = 'Authorization was cancelled on GitHub.';
         });
-        break;
+      } else if (res.status == GitHubTokenStatus.expired) {
+        _countdownTimer?.cancel();
+        _isPolling = false;
+        setState(() {
+          _errorMessage = 'Authorization code expired. Please request a new code.';
+        });
       }
-      // If status == pending, loop continues
+      // If pending or transient network hiccup, keep polling without dying!
+    } finally {
+      if (mounted) {
+        setState(() => _isCheckingNow = false);
+      }
     }
   }
 
@@ -422,7 +452,7 @@ class _GitHubDeviceLoginDialogState extends State<GitHubDeviceLoginDialog>
 
         const SizedBox(height: 18),
 
-        // Action Button: Copy & Open
+        // Primary Action: Copy & Open
         SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
@@ -446,6 +476,38 @@ class _GitHubDeviceLoginDialogState extends State<GitHubDeviceLoginDialog>
           ),
         ),
 
+        const SizedBox(height: 8),
+
+        // Secondary Action: Immediate manual verification button
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _isCheckingNow ? null : _pollOnce,
+            icon: _isCheckingNow
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: CommandColors.signalIce),
+                  )
+                : const Icon(Icons.refresh_rounded, size: 16),
+            label: Text(
+              _isCheckingNow ? 'VERIFYING WITH GITHUB...' : 'I\'VE AUTHORIZED — VERIFY NOW',
+              style: const TextStyle(
+                fontFamily: CommandTheme.fontMono,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.6,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: CommandColors.textPrimary,
+              side: const BorderSide(color: CommandColors.borderMedium),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            ),
+          ),
+        ),
+
         const SizedBox(height: 16),
 
         // Polling Indicator
@@ -457,18 +519,20 @@ class _GitHubDeviceLoginDialogState extends State<GitHubDeviceLoginDialog>
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: CommandColors.signalAmber.withValues(alpha: 0.4 + (_pulseAnim.value * 0.6)),
+                  color: _isCheckingNow
+                      ? CommandColors.signalIce
+                      : CommandColors.signalAmber.withValues(alpha: 0.4 + (_pulseAnim.value * 0.6)),
                   shape: BoxShape.circle,
                 ),
               ),
             ),
             const SizedBox(width: 8),
-            const Text(
-              'Waiting for approval in browser...',
+            Text(
+              _isCheckingNow ? 'Verifying authorization...' : 'Waiting for approval in browser...',
               style: TextStyle(
                 fontFamily: CommandTheme.fontMono,
                 fontSize: 11,
-                color: CommandColors.textMuted,
+                color: _isCheckingNow ? CommandColors.signalIce : CommandColors.textMuted,
               ),
             ),
             const Spacer(),
