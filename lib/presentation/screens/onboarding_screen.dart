@@ -4,6 +4,7 @@ import '../../core/theme/command_theme.dart';
 import '../state/project_manager_controller.dart';
 import 'dashboard_screen.dart';
 import 'github_import_dialog.dart';
+import '../widgets/github_device_login_dialog.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final ProjectManagerController controller;
@@ -428,27 +429,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 id: 'github',
                 title: isConnected
                     ? 'Pull From GitHub (${controller.currentUser?.login ?? 'Connected'})'
-                    : 'Connect GitHub Account',
+                    : 'Sign In With GitHub',
                 subtitle: isConnected
                     ? 'Browse and select your repositories to automatically track as projects'
-                    : 'Sign in with a GitHub Personal Access Token to pull your real repositories',
+                    : '1-click sign-in via browser to pull your repositories into Helm',
                 icon: Icons.hub_rounded,
                 accentColor: CommandColors.signalIce,
                 trailing: FilledButton.tonal(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (_) => GitHubImportDialog(controller: controller),
-                    ).then((_) {
-                      if (mounted) setState(() {});
-                    });
+                  onPressed: () async {
+                    if (isConnected) {
+                      await showDialog(
+                        context: context,
+                        builder: (_) => GitHubImportDialog(controller: controller),
+                      );
+                    } else {
+                      await GitHubDeviceLoginDialog.show(context, controller);
+                    }
+                    if (mounted) setState(() {});
                   },
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                   ),
                   child: Text(
-                    isConnected ? 'BROWSE REPOS' : 'CONNECT',
+                    isConnected ? 'BROWSE REPOS' : 'SIGN IN',
                     style: const TextStyle(
                       fontFamily: CommandTheme.fontMono,
                       fontSize: 10.5,

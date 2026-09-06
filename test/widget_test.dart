@@ -10,6 +10,7 @@ import 'package:helm/data/services/local_git_service.dart';
 import 'package:helm/core/constants/seed_data.dart';
 
 import 'package:helm/domain/models/github_user.dart';
+import 'package:helm/domain/models/github_device_code.dart';
 
 class MockTestRepository implements ProjectRepository {
   List<Project> _projects;
@@ -77,6 +78,16 @@ class MockTestGitHubService implements GitHubService {
 
   @override
   Future<Map<String, dynamic>?> getRateLimit(String? token) async => null;
+
+  @override
+  Future<GitHubDeviceCode?> requestDeviceCode({String? clientId}) async => null;
+
+  @override
+  Future<GitHubTokenResponse> pollDeviceToken({
+    required String deviceCode,
+    String? clientId,
+  }) async =>
+      const GitHubTokenResponse(status: GitHubTokenStatus.pending);
 }
 
 class MockTestLocalGitService extends LocalGitService {

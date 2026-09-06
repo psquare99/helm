@@ -70,6 +70,8 @@ class ProjectManagerController extends ChangeNotifier {
   String _storagePath = '';
 
   // Getters
+  ProjectRepository get repository => _repository;
+  GitHubService get gitHubService => _gitHubService;
   List<Project> get projects => _projects;
   bool get isLoading => _isLoading;
   bool get isSyncingTelemetry => _isSyncingTelemetry;

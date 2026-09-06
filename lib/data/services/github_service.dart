@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../domain/models/github_telemetry.dart';
 import '../../domain/models/github_user.dart';
+import '../../domain/models/github_device_code.dart';
+import '../../core/constants/github_config.dart';
 
 /// GitHub Service abstraction isolating the app from API implementation details.
 abstract class GitHubService {
@@ -16,6 +18,13 @@ abstract class GitHubService {
   Future<List<GitHubRepositoryInfo>> getUserRepositories(String token);
 
   Future<Map<String, dynamic>?> getRateLimit(String? token);
+
+  Future<GitHubDeviceCode?> requestDeviceCode({String? clientId});
+
+  Future<GitHubTokenResponse> pollDeviceToken({
+    required String deviceCode,
+    String? clientId,
+  });
 }
 
 /// Production implementation using GitHub REST API v3
@@ -241,5 +250,98 @@ class HttpGitHubService implements GitHubService {
       }
     } catch (_) {}
     return null;
+  }
+
+  @override
+  Future<GitHubDeviceCode?> requestDeviceCode({String? clientId}) async {
+    final cid = clientId ?? GitHubConfig.clientId;
+    try {
+      final response = await _client.post(
+        Uri.parse(GitHubConfig.deviceCodeEndpoint),
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Helm-App',
+        },
+        body: {
+          'client_id': cid,
+          'scope': GitHubConfig.scopes,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return GitHubDeviceCode.fromJson(data);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  @override
+  Future<GitHubTokenResponse> pollDeviceToken({
+    required String deviceCode,
+    String? clientId,
+  }) async {
+    final cid = clientId ?? GitHubConfig.clientId;
+    try {
+      final response = await _client.post(
+        Uri.parse(GitHubConfig.tokenEndpoint),
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Helm-App',
+        },
+        body: {
+          'client_id': cid,
+          'device_code': deviceCode,
+          'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        if (data.containsKey('access_token')) {
+          return GitHubTokenResponse(
+            status: GitHubTokenStatus.success,
+            accessToken: data['access_token'] as String?,
+            tokenType: data['token_type'] as String?,
+            scope: data['scope'] as String?,
+          );
+        }
+
+        final error = data['error'] as String? ?? '';
+        switch (error) {
+          case 'authorization_pending':
+            return const GitHubTokenResponse(status: GitHubTokenStatus.pending);
+          case 'slow_down':
+            return GitHubTokenResponse(
+              status: GitHubTokenStatus.slowDown,
+              interval: data['interval'] as int? ?? 10,
+            );
+          case 'expired_token':
+            return const GitHubTokenResponse(
+              status: GitHubTokenStatus.expired,
+              errorMessage: 'The device code has expired. Please try again.',
+            );
+          case 'access_denied':
+            return const GitHubTokenResponse(
+              status: GitHubTokenStatus.accessDenied,
+              errorMessage: 'Login was cancelled on GitHub.',
+            );
+          default:
+            return GitHubTokenResponse(
+              status: GitHubTokenStatus.error,
+              errorMessage: data['error_description'] as String? ?? 'Authentication error',
+            );
+        }
+      }
+    } catch (e) {
+      return GitHubTokenResponse(
+        status: GitHubTokenStatus.error,
+        errorMessage: 'Network error: $e',
+      );
+    }
+    return const GitHubTokenResponse(
+      status: GitHubTokenStatus.error,
+      errorMessage: 'Failed to connect to GitHub token endpoint.',
+    );
   }
 }

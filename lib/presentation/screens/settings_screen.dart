@@ -6,6 +6,7 @@ import '../../core/theme/command_theme.dart';
 import '../state/project_manager_controller.dart';
 import 'github_import_dialog.dart';
 import 'onboarding_screen.dart';
+import '../widgets/github_device_login_dialog.dart';
 
 class SettingsScreen extends StatefulWidget {
   final ProjectManagerController controller;
@@ -364,14 +365,70 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Connect a GitHub Personal Access Token to pull your real repositories and observe live telemetry.',
+                    'Connect your GitHub account to import repositories and observe live telemetry without needing any server.',
                     style: TextStyle(
                       fontFamily: CommandTheme.fontSans,
                       fontSize: 13,
                       color: CommandColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final success = await GitHubDeviceLoginDialog.show(context, controller);
+                        if (!mounted) return;
+                        if (success == true) {
+                          setState(() {});
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text('Connected to GitHub as @${controller.currentUser?.login ?? 'user'}'),
+                              backgroundColor: CommandColors.signalEmerald,
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.hub_rounded, size: 16),
+                      label: const Text(
+                        'SIGN IN WITH GITHUB (DEVICE FLOW)',
+                        style: TextStyle(
+                          fontFamily: CommandTheme.fontMono,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: CommandColors.textPrimary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      const Expanded(child: Divider(color: CommandColors.borderSubtle)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          'OR ENTER TOKEN MANUALLY',
+                          style: TextStyle(
+                            fontFamily: CommandTheme.fontMono,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.8,
+                            color: CommandColors.textMuted,
+                          ),
+                        ),
+                      ),
+                      const Expanded(child: Divider(color: CommandColors.borderSubtle)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
@@ -396,8 +453,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       FilledButton(
                         onPressed: _isConnecting ? null : _connectToken,
                         style: FilledButton.styleFrom(
-                          backgroundColor: CommandColors.textPrimary,
-                          foregroundColor: Colors.white,
+                          backgroundColor: CommandColors.surfaceRaised,
+                          foregroundColor: CommandColors.textPrimary,
+                          side: const BorderSide(color: CommandColors.borderSubtle),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
@@ -405,9 +463,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ? const SizedBox(
                                 width: 14,
                                 height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                child: CircularProgressIndicator(strokeWidth: 2, color: CommandColors.signalIce),
                               )
-                            : const Text('CONNECT'),
+                            : const Text('SAVE TOKEN'),
                       ),
                     ],
                   ),
@@ -415,7 +473,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   InkWell(
                     onTap: () {
                       launchUrl(
-                        Uri.parse('https://github.com/settings/tokens/new?scopes=repo,read:org,read:user&description=P2_Project_Manager'),
+                        Uri.parse('https://github.com/settings/tokens/new?scopes=repo,read:org,read:user&description=Helm_Personal_Token'),
                         mode: LaunchMode.externalApplication,
                       );
                     },

@@ -5,6 +5,8 @@ import 'package:helm/domain/models/project_pulse.dart';
 import 'package:helm/domain/models/github_telemetry.dart';
 import 'package:helm/domain/models/github_user.dart';
 import 'package:helm/core/constants/seed_data.dart';
+import 'package:helm/domain/models/github_device_code.dart';
+import 'package:helm/core/constants/github_config.dart';
 
 void main() {
   group('Project State & Philosophy Tests', () {
@@ -117,6 +119,24 @@ void main() {
       expect(repo.language, 'Dart');
       expect(repo.stargazersCount, 14);
       expect(repo.isPrivate, isFalse);
+    });
+
+    test('GitHubDeviceCode parses OAuth device flow response', () {
+      final json = {
+        'device_code': 'dev_1234567890',
+        'user_code': 'ABCD-1234',
+        'verification_uri': 'https://github.com/login/device',
+        'expires_in': 900,
+        'interval': 5,
+      };
+
+      final deviceCode = GitHubDeviceCode.fromJson(json);
+      expect(deviceCode.deviceCode, 'dev_1234567890');
+      expect(deviceCode.userCode, 'ABCD-1234');
+      expect(deviceCode.verificationUri, 'https://github.com/login/device');
+      expect(deviceCode.expiresIn, 900);
+      expect(deviceCode.interval, 5);
+      expect(GitHubConfig.clientId, 'Ov23liKbqqJxwVUJRSmr');
     });
   });
 }

@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/command_colors.dart';
 import '../../core/theme/command_theme.dart';
 import '../state/project_manager_controller.dart';
+import '../widgets/github_device_login_dialog.dart';
 
 class GitHubImportDialog extends StatefulWidget {
   final ProjectManagerController controller;
@@ -115,7 +116,57 @@ class _GitHubImportDialogState extends State<GitHubImportDialog> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: isAuthenticating
+                  ? null
+                  : () async {
+                      final success = await GitHubDeviceLoginDialog.show(context, widget.controller);
+                      if (success == true && mounted) {
+                        setState(() {});
+                      }
+                    },
+              icon: const Icon(Icons.hub_rounded, size: 16),
+              label: const Text(
+                'SIGN IN WITH GITHUB (DEVICE FLOW)',
+                style: TextStyle(
+                  fontFamily: CommandTheme.fontMono,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: CommandColors.textPrimary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              const Expanded(child: Divider(color: CommandColors.borderSubtle)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  'OR ENTER TOKEN MANUALLY',
+                  style: TextStyle(
+                    fontFamily: CommandTheme.fontMono,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.8,
+                    color: CommandColors.textMuted,
+                  ),
+                ),
+              ),
+              const Expanded(child: Divider(color: CommandColors.borderSubtle)),
+            ],
+          ),
+          const SizedBox(height: 16),
           const Text(
             'Personal Access Token (classic or fine-grained)',
             style: TextStyle(
