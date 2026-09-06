@@ -9,6 +9,8 @@ import 'package:project_manager/data/services/github_service.dart';
 import 'package:project_manager/data/services/local_git_service.dart';
 import 'package:project_manager/core/constants/seed_data.dart';
 
+import 'package:project_manager/domain/models/github_user.dart';
+
 class MockTestRepository implements ProjectRepository {
   List<Project> _projects;
 
@@ -29,6 +31,32 @@ class MockTestRepository implements ProjectRepository {
   Future<void> saveGitHubToken(String? token) async {}
 
   @override
+  Future<bool> hasCompletedOnboarding() async => true;
+
+  @override
+  Future<void> setCompletedOnboarding(bool completed) async {}
+
+  @override
+  Future<Map<String, dynamic>> loadSettings() async => {};
+
+  @override
+  Future<void> saveSettings(Map<String, dynamic> settings) async {}
+
+  @override
+  Future<String> exportPortfolioJson() async => '[]';
+
+  @override
+  Future<List<Project>> importPortfolioJson(String jsonStr) async => _projects;
+
+  @override
+  Future<String> getStorageDirectoryPath() async => '/mock/path';
+
+  @override
+  Future<void> clearPortfolio() async {
+    _projects = [];
+  }
+
+  @override
   Future<List<Project>> resetToSeedData() async => _projects;
 }
 
@@ -40,6 +68,15 @@ class MockTestGitHubService implements GitHubService {
     String? token,
   }) async =>
       null;
+
+  @override
+  Future<GitHubUser?> getAuthenticatedUser(String token) async => null;
+
+  @override
+  Future<List<GitHubRepositoryInfo>> getUserRepositories(String token) async => [];
+
+  @override
+  Future<Map<String, dynamic>?> getRateLimit(String? token) async => null;
 }
 
 class MockTestLocalGitService extends LocalGitService {

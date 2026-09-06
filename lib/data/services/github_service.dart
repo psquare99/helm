@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../domain/models/github_telemetry.dart';
+import '../../domain/models/github_user.dart';
 
 /// GitHub Service abstraction isolating the app from API implementation details.
 abstract class GitHubService {
@@ -9,6 +10,12 @@ abstract class GitHubService {
     String repo, {
     String? token,
   });
+
+  Future<GitHubUser?> getAuthenticatedUser(String token);
+
+  Future<List<GitHubRepositoryInfo>> getUserRepositories(String token);
+
+  Future<Map<String, dynamic>?> getRateLimit(String? token);
 }
 
 /// Production implementation using GitHub REST API v3
@@ -151,5 +158,88 @@ class HttpGitHubService implements GitHubService {
         lastFetchError: 'Network or parse error: $e',
       );
     }
+  }
+
+  @override
+  Future<GitHubUser?> getAuthenticatedUser(String token) async {
+    final cleanToken = token.trim();
+    if (cleanToken.isEmpty) return null;
+
+    final headers = <String, String>{
+      'Accept': 'application/vnd.github.v3+json',
+      'User-Agent': 'P2-ProjectManager',
+      'Authorization': 'Bearer $cleanToken',
+    };
+
+    try {
+      final response = await _client.get(
+        Uri.parse('https://api.github.com/user'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return GitHubUser.fromJson(data);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  @override
+  Future<List<GitHubRepositoryInfo>> getUserRepositories(String token) async {
+    final cleanToken = token.trim();
+    if (cleanToken.isEmpty) return [];
+
+    final headers = <String, String>{
+      'Accept': 'application/vnd.github.v3+json',
+      'User-Agent': 'P2-ProjectManager',
+      'Authorization': 'Bearer $cleanToken',
+    };
+
+    try {
+      final response = await _client.get(
+        Uri.parse('https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final list = jsonDecode(response.body) as List<dynamic>;
+        return list
+            .map((item) => GitHubRepositoryInfo.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  @override
+  Future<Map<String, dynamic>?> getRateLimit(String? token) async {
+    final headers = <String, String>{
+      'Accept': 'application/vnd.github.v3+json',
+      'User-Agent': 'P2-ProjectManager',
+    };
+    if (token != null && token.trim().isNotEmpty) {
+      headers['Authorization'] = 'Bearer ${token.trim()}';
+    }
+
+    try {
+      final response = await _client.get(
+        Uri.parse('https://api.github.com/rate_limit'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final rate = data['rate'] as Map<String, dynamic>? ?? {};
+        return {
+          'limit': rate['limit'] ?? 60,
+          'remaining': rate['remaining'] ?? 0,
+          'reset': rate['reset'] != null
+              ? DateTime.fromMillisecondsSinceEpoch((rate['reset'] as int) * 1000)
+              : null,
+        };
+      }
+    } catch (_) {}
+    return null;
   }
 }

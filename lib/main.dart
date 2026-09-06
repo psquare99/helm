@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'core/theme/command_theme.dart';
 import 'presentation/state/project_manager_controller.dart';
 import 'presentation/screens/dashboard_screen.dart';
+import 'presentation/screens/onboarding_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,7 +24,9 @@ class ProjectManagerApp extends StatelessWidget {
       title: 'Project Manager // P² System',
       debugShowCheckedModeBanner: false,
       theme: CommandTheme.lightTheme,
-      home: DashboardScreen(controller: controller),
+      home: controller.hasCompletedOnboarding
+          ? DashboardScreen(controller: controller)
+          : OnboardingScreen(controller: controller),
     );
   }
 }

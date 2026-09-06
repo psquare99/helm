@@ -11,7 +11,8 @@ import '../widgets/project_matrix_row.dart';
 import '../widgets/empty_state_view.dart';
 import 'project_detail_screen.dart';
 import 'project_editor_dialog.dart';
-import 'settings_dialog.dart';
+import 'settings_screen.dart';
+import 'github_import_dialog.dart';
 
 class DashboardScreen extends StatelessWidget {
   final ProjectManagerController controller;
@@ -33,6 +34,7 @@ class DashboardScreen extends StatelessWidget {
                   controller: controller,
                   onNewProject: () => _openNewProjectDialog(context),
                   onOpenSettings: () => _openSettingsDialog(context),
+                  onImportGitHub: () => _openGitHubImportDialog(context),
                 ),
 
                 // Intelligence Radar Panel
@@ -442,9 +444,17 @@ class DashboardScreen extends StatelessWidget {
   }
 
   void _openSettingsDialog(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SettingsScreen(controller: controller),
+      ),
+    );
+  }
+
+  void _openGitHubImportDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (ctx) => SettingsDialog(controller: controller),
+      builder: (ctx) => GitHubImportDialog(controller: controller),
     );
   }
 }

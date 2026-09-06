@@ -10,7 +10,15 @@ abstract class ProjectRepository {
   Future<void> saveProjects(List<Project> projects);
   Future<String?> getGitHubToken();
   Future<void> saveGitHubToken(String? token);
+  Future<bool> hasCompletedOnboarding();
+  Future<void> setCompletedOnboarding(bool completed);
+  Future<Map<String, dynamic>> loadSettings();
+  Future<void> saveSettings(Map<String, dynamic> settings);
+  Future<String> exportPortfolioJson();
+  Future<List<Project>> importPortfolioJson(String jsonStr);
+  Future<String> getStorageDirectoryPath();
   Future<List<Project>> resetToSeedData();
+  Future<void> clearPortfolio();
 }
 
 class LocalFileProjectRepository implements ProjectRepository {
@@ -28,6 +36,16 @@ class LocalFileProjectRepository implements ProjectRepository {
   }
 
   @override
+  Future<String> getStorageDirectoryPath() async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      return dir.path;
+    } catch (_) {
+      return 'Unknown';
+    }
+  }
+
+  @override
   Future<List<Project>> loadProjects() async {
     try {
       final file = await _getFile(_fileName);
@@ -38,9 +56,7 @@ class LocalFileProjectRepository implements ProjectRepository {
           final projects = decoded
               .map((item) => Project.fromJson(item as Map<String, dynamic>))
               .toList();
-          if (projects.isNotEmpty) {
-            return projects;
-          }
+          return projects;
         }
       }
     } catch (e) {
@@ -67,31 +83,77 @@ class LocalFileProjectRepository implements ProjectRepository {
   }
 
   @override
-  Future<String?> getGitHubToken() async {
+  Future<Map<String, dynamic>> loadSettings() async {
     try {
       final file = await _getFile(_settingsFileName);
       if (file != null && await file.exists()) {
         final content = await file.readAsString();
-        final map = jsonDecode(content) as Map<String, dynamic>;
-        return map['github_token'] as String?;
+        return jsonDecode(content) as Map<String, dynamic>;
       }
     } catch (e) {
-      debugPrint('Error reading github token: $e');
+      debugPrint('Error loading settings: $e');
     }
-    return null;
+    return {};
+  }
+
+  @override
+  Future<void> saveSettings(Map<String, dynamic> settings) async {
+    try {
+      final file = await _getFile(_settingsFileName);
+      if (file != null) {
+        await file.writeAsString(jsonEncode(settings));
+      }
+    } catch (e) {
+      debugPrint('Error saving settings: $e');
+    }
+  }
+
+  @override
+  Future<String?> getGitHubToken() async {
+    final settings = await loadSettings();
+    return settings['github_token'] as String?;
   }
 
   @override
   Future<void> saveGitHubToken(String? token) async {
-    try {
-      final file = await _getFile(_settingsFileName);
-      if (file != null) {
-        final map = {'github_token': token};
-        await file.writeAsString(jsonEncode(map));
-      }
-    } catch (e) {
-      debugPrint('Error persisting github token: $e');
-    }
+    final settings = await loadSettings();
+    settings['github_token'] = token;
+    await saveSettings(settings);
+  }
+
+  @override
+  Future<bool> hasCompletedOnboarding() async {
+    final settings = await loadSettings();
+    return settings['has_completed_onboarding'] as bool? ?? false;
+  }
+
+  @override
+  Future<void> setCompletedOnboarding(bool completed) async {
+    final settings = await loadSettings();
+    settings['has_completed_onboarding'] = completed;
+    await saveSettings(settings);
+  }
+
+  @override
+  Future<String> exportPortfolioJson() async {
+    final projects = await loadProjects();
+    return const JsonEncoder.withIndent('  ')
+        .convert(projects.map((p) => p.toJson()).toList());
+  }
+
+  @override
+  Future<List<Project>> importPortfolioJson(String jsonStr) async {
+    final decoded = jsonDecode(jsonStr) as List<dynamic>;
+    final imported = decoded
+        .map((item) => Project.fromJson(item as Map<String, dynamic>))
+        .toList();
+    await saveProjects(imported);
+    return imported;
+  }
+
+  @override
+  Future<void> clearPortfolio() async {
+    await saveProjects([]);
   }
 
   @override

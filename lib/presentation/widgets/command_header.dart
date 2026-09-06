@@ -7,12 +7,14 @@ class CommandHeader extends StatelessWidget {
   final ProjectManagerController controller;
   final VoidCallback onNewProject;
   final VoidCallback onOpenSettings;
+  final VoidCallback onImportGitHub;
 
   const CommandHeader({
     super.key,
     required this.controller,
     required this.onNewProject,
     required this.onOpenSettings,
+    required this.onImportGitHub,
   });
 
   @override
@@ -47,7 +49,9 @@ class CommandHeader extends StatelessWidget {
               Expanded(
                 child: _buildTelemetryBar(),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 14),
+              _buildGitHubImportButton(),
+              const SizedBox(width: 8),
               _buildSyncButton(),
               const SizedBox(width: 8),
               _buildRadarButton(),
@@ -92,6 +96,8 @@ class CommandHeader extends StatelessWidget {
             children: [
               _buildBrand(),
               const Spacer(),
+              _buildGitHubImportIconButton(),
+              const SizedBox(width: 4),
               _buildSyncIconButton(),
               const SizedBox(width: 4),
               _buildRadarButton(),
@@ -210,6 +216,52 @@ class CommandHeader extends StatelessWidget {
               color: CommandColors.signalAmber,
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildGitHubImportButton() {
+    return OutlinedButton.icon(
+      onPressed: onImportGitHub,
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        side: const BorderSide(color: CommandColors.borderSubtle),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        backgroundColor: CommandColors.surfaceBase,
+      ),
+      icon: const Icon(
+        Icons.hub_rounded,
+        size: 14,
+        color: CommandColors.signalIce,
+      ),
+      label: const Text(
+        'PULL REPOS',
+        style: TextStyle(
+          fontFamily: CommandTheme.fontMono,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+          color: CommandColors.textPrimary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGitHubImportIconButton() {
+    return IconButton(
+      tooltip: 'Pull repositories from GitHub',
+      onPressed: onImportGitHub,
+      icon: const Icon(
+        Icons.hub_rounded,
+        size: 18,
+        color: CommandColors.signalIce,
+      ),
+      style: IconButton.styleFrom(
+        backgroundColor: CommandColors.surfaceBase,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4),
+          side: const BorderSide(color: CommandColors.borderSubtle),
+        ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:project_manager/domain/models/project.dart';
 import 'package:project_manager/domain/models/project_status.dart';
 import 'package:project_manager/domain/models/project_pulse.dart';
 import 'package:project_manager/domain/models/github_telemetry.dart';
+import 'package:project_manager/domain/models/github_user.dart';
 import 'package:project_manager/core/constants/seed_data.dart';
 
 void main() {
@@ -78,6 +79,47 @@ void main() {
       expect(heartbeat.github, isNull);
       expect(heartbeat.nextActionDisplay, 'No next action defined');
       expect(heartbeat.milestoneDisplay, 'No milestones yet');
+    });
+
+    test('GitHubUser and GitHubRepositoryInfo parse JSON accurately', () {
+      final userJson = {
+        'login': 'psquare99',
+        'id': 12345,
+        'avatar_url': 'https://avatars.githubusercontent.com/u/12345',
+        'html_url': 'https://github.com/psquare99',
+        'name': 'P²',
+        'bio': 'Systems Architect',
+        'public_repos': 12,
+        'total_private_repos': 5,
+      };
+
+      final user = GitHubUser.fromJson(userJson);
+      expect(user.login, 'psquare99');
+      expect(user.displayName, 'P²');
+      expect(user.publicRepos, 12);
+      expect(user.totalPrivateRepos, 5);
+
+      final repoJson = {
+        'name': 'project-manager',
+        'full_name': 'psquare99/project-manager',
+        'owner': {'login': 'psquare99'},
+        'description': 'Personal command center for projects',
+        'html_url': 'https://github.com/psquare99/project-manager',
+        'private': false,
+        'fork': false,
+        'language': 'Dart',
+        'stargazers_count': 14,
+        'open_issues_count': 0,
+        'default_branch': 'main',
+      };
+
+      final repo = GitHubRepositoryInfo.fromJson(repoJson);
+      expect(repo.name, 'project-manager');
+      expect(repo.fullName, 'psquare99/project-manager');
+      expect(repo.owner, 'psquare99');
+      expect(repo.language, 'Dart');
+      expect(repo.stargazersCount, 14);
+      expect(repo.isPrivate, isFalse);
     });
   });
 }

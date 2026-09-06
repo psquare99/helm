@@ -6,6 +6,7 @@ import '../../domain/models/project_milestone.dart';
 import '../../domain/models/project_note.dart';
 import '../../domain/models/project_intelligence.dart';
 import '../../domain/models/github_telemetry.dart';
+import '../../domain/models/github_user.dart';
 import '../../data/repositories/project_repository.dart';
 import '../../data/services/github_service.dart';
 import '../../data/services/local_git_service.dart';
@@ -58,6 +59,15 @@ class ProjectManagerController extends ChangeNotifier {
   String _searchQuery = '';
   bool _showIntelligenceRadar = true;
 
+  // GitHub User & Onboarding State
+  bool _hasCompletedOnboarding = true;
+  GitHubUser? _currentUser;
+  bool _isAuthenticatingGitHub = false;
+  Map<String, dynamic>? _rateLimitInfo;
+  List<GitHubRepositoryInfo> _discoveredRepos = [];
+  bool _isFetchingRepos = false;
+  String _storagePath = '';
+
   // Getters
   List<Project> get projects => _projects;
   bool get isLoading => _isLoading;
@@ -67,6 +77,14 @@ class ProjectManagerController extends ChangeNotifier {
   PortfolioViewMode get viewMode => _viewMode;
   String get searchQuery => _searchQuery;
   bool get showIntelligenceRadar => _showIntelligenceRadar;
+
+  bool get hasCompletedOnboarding => _hasCompletedOnboarding;
+  GitHubUser? get currentUser => _currentUser;
+  bool get isAuthenticatingGitHub => _isAuthenticatingGitHub;
+  Map<String, dynamic>? get rateLimitInfo => _rateLimitInfo;
+  List<GitHubRepositoryInfo> get discoveredRepos => _discoveredRepos;
+  bool get isFetchingRepos => _isFetchingRepos;
+  String get storagePath => _storagePath;
 
   List<ProjectObservation> get observations =>
       _intelligenceService.generateObservations(_projects);
@@ -143,7 +161,15 @@ class ProjectManagerController extends ChangeNotifier {
     notifyListeners();
 
     try {
+      _hasCompletedOnboarding = await _repository.hasCompletedOnboarding();
+      _storagePath = await _repository.getStorageDirectoryPath();
       _gitHubToken = await _repository.getGitHubToken();
+
+      if (_gitHubToken != null && _gitHubToken!.trim().isNotEmpty) {
+        _currentUser = await _gitHubService.getAuthenticatedUser(_gitHubToken!);
+        _rateLimitInfo = await _gitHubService.getRateLimit(_gitHubToken);
+      }
+
       _projects = await _repository.loadProjects();
 
       // Proactively sync telemetry on startup for connected repositories
@@ -504,6 +530,190 @@ class ProjectManagerController extends ChangeNotifier {
     await _syncLocalAndRemoteTelemetry(quiet: true);
 
     _isLoading = false;
+    notifyListeners();
+  }
+
+  // GitHub Authentication & Account
+  Future<bool> loginWithGitHubToken(String token) async {
+    final clean = token.trim();
+    if (clean.isEmpty) return false;
+
+    _isAuthenticatingGitHub = true;
+    notifyListeners();
+
+    try {
+      final user = await _gitHubService.getAuthenticatedUser(clean);
+      if (user != null) {
+        _currentUser = user;
+        _gitHubToken = clean;
+        await _repository.saveGitHubToken(clean);
+        _rateLimitInfo = await _gitHubService.getRateLimit(clean);
+
+        // Proactively refresh telemetry across the portfolio with the authenticated token
+        await refreshAllTelemetry();
+        _isAuthenticatingGitHub = false;
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('GitHub auth failed: $e');
+    } finally {
+      _isAuthenticatingGitHub = false;
+      notifyListeners();
+    }
+    return false;
+  }
+
+  Future<void> disconnectGitHub() async {
+    _gitHubToken = null;
+    _currentUser = null;
+    _rateLimitInfo = null;
+    _discoveredRepos = [];
+    await _repository.saveGitHubToken(null);
+    notifyListeners();
+  }
+
+  Future<void> refreshRateLimit() async {
+    _rateLimitInfo = await _gitHubService.getRateLimit(_gitHubToken);
+    notifyListeners();
+  }
+
+  // GitHub Repository Discovery & Pull
+  Future<List<GitHubRepositoryInfo>> fetchUserRepositories() async {
+    if (_gitHubToken == null || _gitHubToken!.isEmpty) return [];
+
+    _isFetchingRepos = true;
+    notifyListeners();
+
+    try {
+      final repos = await _gitHubService.getUserRepositories(_gitHubToken!);
+      _discoveredRepos = repos;
+      return repos;
+    } catch (e) {
+      debugPrint('Error fetching repos: $e');
+      return [];
+    } finally {
+      _isFetchingRepos = false;
+      notifyListeners();
+    }
+  }
+
+  Future<int> importGitHubRepositories(List<GitHubRepositoryInfo> reposToImport) async {
+    int count = 0;
+    for (final repo in reposToImport) {
+      final alreadyExists = _projects.any((p) =>
+          p.github?.fullName.toLowerCase() == repo.fullName.toLowerCase() ||
+          p.name.toLowerCase() == repo.name.toLowerCase());
+
+      if (!alreadyExists) {
+        final projectType = _inferProjectType(repo.language, repo.name);
+        final formattedName = _formatRepoTitle(repo.name);
+
+        final newProject = Project(
+          id: 'gh-${repo.owner}-${repo.name}-${DateTime.now().millisecondsSinceEpoch}-$count',
+          name: formattedName,
+          description: repo.description ?? 'Imported from GitHub ${repo.fullName}',
+          type: projectType,
+          humanStatus: ProjectHumanStatus.active,
+          priority: ProjectPriority.p2,
+          currentMilestone: null,
+          nextAction: null,
+          github: GitHubTelemetry(
+            owner: repo.owner,
+            repo: repo.name,
+            repoUrl: repo.htmlUrl,
+            defaultBranch: repo.defaultBranch,
+            openIssuesCount: repo.openIssuesCount,
+            lastFetchedAt: DateTime.now(),
+          ),
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+
+        _projects.add(newProject);
+        count++;
+      }
+    }
+
+    if (count > 0) {
+      await _repository.saveProjects(_projects);
+      await refreshAllTelemetry();
+      notifyListeners();
+    }
+
+    return count;
+  }
+
+  ProjectType _inferProjectType(String? language, String name) {
+    final lang = language?.toLowerCase() ?? '';
+    final n = name.toLowerCase();
+
+    if (lang == 'dart' || n.contains('flutter')) {
+      return ProjectType.flutterApp;
+    } else if (lang == 'python' || (lang == 'go' && n.contains('cli'))) {
+      return ProjectType.cliPackage;
+    } else if (lang == 'javascript' ||
+        lang == 'typescript' ||
+        lang == 'html' ||
+        lang == 'css' ||
+        lang == 'vue') {
+      return ProjectType.webApp;
+    } else if (n.contains('desktop') || n.contains('hud') || n.contains('monitor')) {
+      return ProjectType.desktopApp;
+    } else if (lang == 'rust' || lang == 'c' || lang == 'c++') {
+      return ProjectType.systemTool;
+    } else if (n.contains('bot') || n.contains('robot') || n.contains('hardware')) {
+      return ProjectType.hardware;
+    } else if (n.contains('service') || n.contains('daemon') || n.contains('server')) {
+      return ProjectType.service;
+    } else {
+      return ProjectType.other;
+    }
+  }
+
+  String _formatRepoTitle(String name) {
+    final words = name.replaceAll(RegExp(r'[-_]'), ' ').split(' ');
+    return words.map((w) {
+      if (w.isEmpty) return '';
+      if (w.length <= 3) return w.toUpperCase();
+      return w[0].toUpperCase() + w.substring(1);
+    }).join(' ').trim();
+  }
+
+  // Onboarding
+  Future<void> completeOnboarding() async {
+    _hasCompletedOnboarding = true;
+    await _repository.setCompletedOnboarding(true);
+    notifyListeners();
+  }
+
+  Future<void> resetOnboarding() async {
+    _hasCompletedOnboarding = false;
+    await _repository.setCompletedOnboarding(false);
+    notifyListeners();
+  }
+
+  // Backup & Import/Export
+  Future<String> exportPortfolioJson() async {
+    return _repository.exportPortfolioJson();
+  }
+
+  Future<bool> importPortfolioJson(String jsonStr) async {
+    try {
+      final imported = await _repository.importPortfolioJson(jsonStr);
+      _projects = imported;
+      await _syncLocalAndRemoteTelemetry(quiet: true);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Error importing portfolio: $e');
+      return false;
+    }
+  }
+
+  Future<void> clearPortfolio() async {
+    _projects = [];
+    await _repository.clearPortfolio();
     notifyListeners();
   }
 
