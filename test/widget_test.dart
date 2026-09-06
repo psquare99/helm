@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:project_manager/main.dart';
-import 'package:project_manager/presentation/state/project_manager_controller.dart';
-import 'package:project_manager/domain/models/project.dart';
-import 'package:project_manager/domain/models/github_telemetry.dart';
-import 'package:project_manager/data/repositories/project_repository.dart';
-import 'package:project_manager/data/services/github_service.dart';
-import 'package:project_manager/data/services/local_git_service.dart';
-import 'package:project_manager/core/constants/seed_data.dart';
+import 'package:helm/main.dart';
+import 'package:helm/presentation/state/project_manager_controller.dart';
+import 'package:helm/domain/models/project.dart';
+import 'package:helm/domain/models/github_telemetry.dart';
+import 'package:helm/data/repositories/project_repository.dart';
+import 'package:helm/data/services/github_service.dart';
+import 'package:helm/data/services/local_git_service.dart';
+import 'package:helm/core/constants/seed_data.dart';
 
-import 'package:project_manager/domain/models/github_user.dart';
+import 'package:helm/domain/models/github_user.dart';
 
 class MockTestRepository implements ProjectRepository {
   List<Project> _projects;
@@ -115,15 +115,50 @@ void main() {
     await tester.pump();
 
     // Verify command header and identity
-    expect(find.text('PROJECT MANAGER'), findsOneWidget);
+    expect(find.text('HELM'), findsOneWidget);
     expect(find.text('P²'), findsOneWidget);
 
-    // Verify real projects from seed are rendered
-    expect(find.text('Prime'), findsWidgets);
-    expect(find.text('P² Studio'), findsWidgets);
-    expect(find.text('WAYFINDER'), findsWidgets);
+    // Verify sample projects are rendered
+    expect(find.text('Apex Mobile'), findsWidgets);
+    expect(find.text('Nexus API Gateway'), findsWidgets);
 
     // Reset view size after test
+    addTearDown(tester.view.resetPhysicalSize);
+  });
+
+  testWidgets('Dashboard switches between Simple Mode, Pulse Cards, and Flight Deck Table', (WidgetTester tester) async {
+    final seedProjects = SeedData.getInitialProjects();
+    final mockRepo = MockTestRepository(seedProjects);
+    final mockGitHub = MockTestGitHubService();
+    final mockLocalGit = MockTestLocalGitService();
+
+    final controller = ProjectManagerController(
+      repository: mockRepo,
+      gitHubService: mockGitHub,
+      localGitService: mockLocalGit,
+    );
+    await controller.init();
+
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+
+    await tester.pumpWidget(ProjectManagerApp(controller: controller));
+    await tester.pump();
+
+    // Switch to Simple Mode
+    controller.setViewMode(PortfolioViewMode.simpleGrid);
+    await tester.pumpAndSettle();
+
+    // Verify Simple Card highlights immediate next action cleanly
+    expect(find.text('NEXT: '), findsWidgets);
+    expect(find.text('Finalize biometric authentication flow'), findsWidgets);
+
+    // Switch to Flight Deck table
+    controller.setViewMode(PortfolioViewMode.flightDeckTable);
+    await tester.pumpAndSettle();
+    expect(find.text('HUMAN STATE'), findsOneWidget);
+    expect(find.text('OBSERVED SIGNAL'), findsOneWidget);
+
     addTearDown(tester.view.resetPhysicalSize);
   });
 }

@@ -26,6 +26,7 @@ enum PortfolioFilter {
 }
 
 enum PortfolioViewMode {
+  simpleGrid(label: 'Simple Cards', icon: Icons.view_agenda_outlined),
   pulseGrid(label: 'Pulse Cards', icon: Icons.grid_view_rounded),
   flightDeckTable(label: 'Flight Deck Table', icon: Icons.table_rows_rounded);
 
@@ -170,6 +171,15 @@ class ProjectManagerController extends ChangeNotifier {
         _rateLimitInfo = await _gitHubService.getRateLimit(_gitHubToken);
       }
 
+      final settings = await _repository.loadSettings();
+      final savedMode = settings['default_view_mode'] as String?;
+      if (savedMode != null) {
+        _viewMode = PortfolioViewMode.values.firstWhere(
+          (m) => m.name == savedMode,
+          orElse: () => PortfolioViewMode.simpleGrid,
+        );
+      }
+
       _projects = await _repository.loadProjects();
 
       // Proactively sync telemetry on startup for connected repositories
@@ -187,9 +197,14 @@ class ProjectManagerController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setViewMode(PortfolioViewMode mode) {
+  void setViewMode(PortfolioViewMode mode) async {
     _viewMode = mode;
     notifyListeners();
+    try {
+      final settings = await _repository.loadSettings();
+      settings['default_view_mode'] = mode.name;
+      await _repository.saveSettings(settings);
+    } catch (_) {}
   }
 
   void setSearchQuery(String query) {

@@ -1,5 +1,5 @@
-name: project_manager
-description: "A new Flutter project."
+name: helm
+description: "Personal Command Center For Everything You Build."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -49,6 +49,25 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  image_path: "assets/helm_icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#F6F8FA"
+  adaptive_icon_foreground: "assets/helm_icon_transparent.png"
+  adaptive_icon_foreground_inset: 16
+  web:
+    generate: true
+    image_path: "assets/helm_icon.png"
+    background_color: "#F6F8FA"
+    theme_color: "#0F172A"
+  windows:
+    generate: true
+    image_path: "assets/helm_icon.png"
+    icon_size: 48
+
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

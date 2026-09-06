@@ -39,14 +39,18 @@ class HumanStatusBadge extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 5),
-            Text(
-              'STATUS NOT SET',
-              style: TextStyle(
-                fontFamily: CommandTheme.fontMono,
-                fontSize: compact ? 9.5 : 10.5,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-                color: CommandColors.textMuted,
+            Flexible(
+              child: Text(
+                compact ? 'NOT SET' : 'STATUS NOT SET',
+                style: TextStyle(
+                  fontFamily: CommandTheme.fontMono,
+                  fontSize: compact ? 9.5 : 10.5,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                  color: CommandColors.textMuted,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -61,30 +65,37 @@ class HumanStatusBadge extends StatelessWidget {
         vertical: compact ? 2 : 4,
       ),
       decoration: BoxDecoration(
-        color: s.color.withValues(alpha: 0.09),
+        color: s.color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(3),
-        border: Border.all(color: s.color.withValues(alpha: 0.3), width: 1),
+        border: Border.all(
+          color: s.color.withValues(alpha: 0.3),
+          width: 1,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 6,
-            height: 6,
+            width: 5,
+            height: 5,
             decoration: BoxDecoration(
               color: s.color,
               shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 6),
-          Text(
-            compact ? s.code : s.label.toUpperCase(),
-            style: TextStyle(
-              fontFamily: CommandTheme.fontMono,
-              fontSize: compact ? 9.5 : 10.5,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.6,
-              color: s.color,
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              compact ? s.code : s.label.toUpperCase(),
+              style: TextStyle(
+                fontFamily: CommandTheme.fontMono,
+                fontSize: compact ? 9.5 : 10.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+                color: s.color,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -139,16 +150,20 @@ class ObservedActivityBadge extends StatelessWidget {
               color: color,
             ),
             const SizedBox(width: 5),
-            Text(
-              compact
-                  ? (isUntracked ? 'OFFLINE' : activity.code)
-                  : activity.label.toUpperCase(),
-              style: TextStyle(
-                fontFamily: CommandTheme.fontMono,
-                fontSize: compact ? 9.5 : 10.5,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-                color: color,
+            Flexible(
+              child: Text(
+                compact
+                    ? (isUntracked ? 'OFFLINE' : activity.code)
+                    : activity.label.toUpperCase(),
+                style: TextStyle(
+                  fontFamily: CommandTheme.fontMono,
+                  fontSize: compact ? 9.5 : 10.5,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                  color: color,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

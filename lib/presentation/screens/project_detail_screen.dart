@@ -314,7 +314,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                   backgroundColor: CommandColors.surfaceCard,
                   title: Text('Delete ${project.name}?'),
                   content: const Text(
-                    'Are you sure you want to remove this project from Project Manager? Local files will not be affected.',
+                    'Are you sure you want to remove this project from Helm? Local files will not be affected.',
                   ),
                   actions: [
                     TextButton(

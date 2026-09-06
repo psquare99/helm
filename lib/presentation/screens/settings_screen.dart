@@ -661,9 +661,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: CommandColors.surfaceCard,
-        title: const Text('Reset Portfolio to Seed Data?'),
+        title: const Text('Load Sample Projects?'),
         content: const Text(
-          'This will replace your current portfolio list with the default workstation projects (Prime, Studio, Curio, etc.).',
+          'This will replace your current portfolio list with illustrative sample demo projects.',
         ),
         actions: [
           TextButton(
@@ -751,8 +751,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 SegmentedButton<PortfolioViewMode>(
                   segments: const [
                     ButtonSegment(
+                      value: PortfolioViewMode.simpleGrid,
+                      label: Text('Simple'),
+                      icon: Icon(Icons.view_agenda_outlined, size: 14),
+                    ),
+                    ButtonSegment(
                       value: PortfolioViewMode.pulseGrid,
-                      label: Text('Pulse Cards'),
+                      label: Text('Pulse'),
                       icon: Icon(Icons.grid_view_rounded, size: 14),
                     ),
                     ButtonSegment(

@@ -7,6 +7,7 @@ import '../state/project_manager_controller.dart';
 import '../widgets/command_header.dart';
 import '../widgets/intelligence_banner.dart';
 import '../widgets/project_pulse_card.dart';
+import '../widgets/simple_project_card.dart';
 import '../widgets/project_matrix_row.dart';
 import '../widgets/empty_state_view.dart';
 import 'project_detail_screen.dart';
@@ -90,6 +91,8 @@ class DashboardScreen extends StatelessWidget {
 
     if (controller.viewMode == PortfolioViewMode.flightDeckTable) {
       return _buildFlightDeckTableView(context, filtered);
+    } else if (controller.viewMode == PortfolioViewMode.simpleGrid) {
+      return _buildSimpleGridView(context, filtered);
     } else {
       return _buildPulseGridView(context, filtered);
     }
@@ -408,6 +411,140 @@ class DashboardScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  Widget _buildSimpleGridView(BuildContext context, List<Project> projects) {
+    final isFiltered =
+        controller.filter != PortfolioFilter.all || controller.searchQuery.isNotEmpty;
+
+    if (isFiltered) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final crossAxisCount = _calcCrossAxisCount(constraints.maxWidth);
+          final aspectRatio = _calcSimpleChildAspectRatio(constraints.maxWidth);
+          return GridView.builder(
+            padding: const EdgeInsets.all(20),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              childAspectRatio: aspectRatio,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+            ),
+            itemCount: projects.length,
+            itemBuilder: (context, index) {
+              final p = projects[index];
+              return SimpleProjectCard(
+                project: p,
+                onTap: () => _navigateToDetail(context, p.id),
+                onQuickStatusChange: (status) =>
+                    controller.updateHumanStatus(p.id, status),
+              );
+            },
+          );
+        },
+      );
+    }
+
+    final active = projects.where((p) => p.humanStatus == ProjectHumanStatus.active).toList();
+    final inDev = projects.where((p) => p.humanStatus == ProjectHumanStatus.inDevelopment).toList();
+    final planningAndIdeas = projects
+        .where((p) =>
+            p.humanStatus == ProjectHumanStatus.planning ||
+            p.humanStatus == ProjectHumanStatus.idea)
+        .toList();
+    final pausedAndMaint = projects
+        .where((p) =>
+            p.humanStatus == ProjectHumanStatus.paused ||
+            p.humanStatus == ProjectHumanStatus.maintenance)
+        .toList();
+    final unset = projects.where((p) => p.humanStatus == null).toList();
+    final completed = projects
+        .where((p) =>
+            p.humanStatus == ProjectHumanStatus.complete ||
+            p.humanStatus == ProjectHumanStatus.archived)
+        .toList();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (active.isNotEmpty) ...[
+            _buildSectionHeader('ACTIVE MOMENTUM', active.length, CommandColors.signalEmerald),
+            const SizedBox(height: 10),
+            _buildSimpleGridSection(context, active),
+            const SizedBox(height: 22),
+          ],
+          if (inDev.isNotEmpty) ...[
+            _buildSectionHeader('IN DEVELOPMENT', inDev.length, CommandColors.signalIce),
+            const SizedBox(height: 10),
+            _buildSimpleGridSection(context, inDev),
+            const SizedBox(height: 22),
+          ],
+          if (planningAndIdeas.isNotEmpty) ...[
+            _buildSectionHeader('PLANNING & IDEAS', planningAndIdeas.length, const Color(0xFF60A5FA)),
+            const SizedBox(height: 10),
+            _buildSimpleGridSection(context, planningAndIdeas),
+            const SizedBox(height: 22),
+          ],
+          if (pausedAndMaint.isNotEmpty) ...[
+            _buildSectionHeader('PAUSED & MAINTENANCE', pausedAndMaint.length, CommandColors.signalAmber),
+            const SizedBox(height: 10),
+            _buildSimpleGridSection(context, pausedAndMaint),
+            const SizedBox(height: 22),
+          ],
+          if (unset.isNotEmpty) ...[
+            _buildSectionHeader('STATUS NOT SET', unset.length, CommandColors.textMuted),
+            const SizedBox(height: 10),
+            _buildSimpleGridSection(context, unset),
+            const SizedBox(height: 22),
+          ],
+          if (completed.isNotEmpty) ...[
+            _buildSectionHeader('COMPLETED & ARCHIVED', completed.length, const Color(0xFF34D399)),
+            const SizedBox(height: 10),
+            _buildSimpleGridSection(context, completed),
+            const SizedBox(height: 22),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSimpleGridSection(BuildContext context, List<Project> list) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final crossAxisCount = _calcCrossAxisCount(constraints.maxWidth);
+        final aspectRatio = _calcSimpleChildAspectRatio(constraints.maxWidth);
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: aspectRatio,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: list.length,
+          itemBuilder: (context, index) {
+            final p = list[index];
+            return SimpleProjectCard(
+              project: p,
+              onTap: () => _navigateToDetail(context, p.id),
+              onQuickStatusChange: (status) =>
+                  controller.updateHumanStatus(p.id, status),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  double _calcSimpleChildAspectRatio(double width) {
+    if (width < 500) return 2.6;
+    if (width < 750) return 2.9;
+    if (width < 1100) return 2.6;
+    if (width < 1500) return 2.7;
+    return 2.9;
   }
 
   int _calcCrossAxisCount(double width) {

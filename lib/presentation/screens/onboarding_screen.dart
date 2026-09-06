@@ -17,7 +17,7 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
-  String _selectedSetupOption = 'seed'; // 'github', 'seed', 'blank'
+  String _selectedSetupOption = 'blank'; // 'blank', 'github', 'sample'
 
   @override
   void dispose() {
@@ -46,12 +46,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _finishOnboarding() async {
-    if (_selectedSetupOption == 'blank') {
-      await widget.controller.clearPortfolio();
-    } else if (_selectedSetupOption == 'seed') {
+    if (_selectedSetupOption == 'sample') {
       await widget.controller.resetToSeedData();
+    } else if (_selectedSetupOption == 'blank') {
+      await widget.controller.clearPortfolio();
     }
-    // If 'github', projects were already imported or token set
+    // If 'github', projects were imported directly via the import dialog
 
     await widget.controller.completeOnboarding();
 
@@ -87,7 +87,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   const SizedBox(width: 10),
                   const Text(
-                    'PROJECT MANAGER',
+                    'HELM',
                     style: TextStyle(
                       fontFamily: CommandTheme.fontMono,
                       fontSize: 13,
@@ -251,8 +251,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
               const SizedBox(height: 14),
               const Text(
-                'Project Manager is not another generic task-management board with colorful cards. '
-                'It is an intelligent flight deck designed to give you a clear, effortless overview of all active, in-development, and planned systems across your ecosystem.',
+                'Helm is an intelligent flight deck designed to give you a clear, effortless overview of all active, in-development, and planned systems across your ecosystem.',
                 style: TextStyle(
                   fontFamily: CommandTheme.fontSans,
                   fontSize: 14.5,
@@ -412,7 +411,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
               const SizedBox(height: 22),
 
-              // Option A: Pull Real GitHub Repositories
+              // Option A: Start Fresh (Blank Canvas) - Default
+              _buildSetupOptionTile(
+                id: 'blank',
+                title: 'Start Fresh (Clean State)',
+                subtitle:
+                    'Begin with an empty workspace and add your own projects on your terms.',
+                icon: Icons.space_dashboard_outlined,
+                accentColor: CommandColors.signalEmerald,
+              ),
+
+              const SizedBox(height: 12),
+
+              // Option B: Pull Real GitHub Repositories
               _buildSetupOptionTile(
                 id: 'github',
                 title: isConnected
@@ -449,26 +460,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
               const SizedBox(height: 12),
 
-              // Option B: Load Local Workstation Portfolio
+              // Option C: Explore Sample Demo Projects
               _buildSetupOptionTile(
-                id: 'seed',
-                title: 'Load Workstation Portfolio',
+                id: 'sample',
+                title: 'Explore Demo Projects',
                 subtitle:
-                    'Initializes with your existing projects (Prime, Studio, Curio, Wayfarer, etc.)',
-                icon: Icons.folder_special_rounded,
-                accentColor: CommandColors.signalEmerald,
-              ),
-
-              const SizedBox(height: 12),
-
-              // Option C: Start Blank
-              _buildSetupOptionTile(
-                id: 'blank',
-                title: 'Start Fresh (Blank Canvas)',
-                subtitle:
-                    'Begin with an empty command center and add your projects manually.',
-                icon: Icons.add_circle_outline_rounded,
-                accentColor: CommandColors.textMuted,
+                    'Load 2 illustrative sample projects (Mobile App & Cloud API) to preview the system.',
+                icon: Icons.lightbulb_outline_rounded,
+                accentColor: CommandColors.signalAmber,
               ),
             ],
           ),

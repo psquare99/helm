@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:project_manager/domain/models/project.dart';
-import 'package:project_manager/domain/models/project_status.dart';
-import 'package:project_manager/domain/models/project_pulse.dart';
-import 'package:project_manager/domain/models/github_telemetry.dart';
-import 'package:project_manager/domain/models/github_user.dart';
-import 'package:project_manager/core/constants/seed_data.dart';
+import 'package:helm/domain/models/project.dart';
+import 'package:helm/domain/models/project_status.dart';
+import 'package:helm/domain/models/project_pulse.dart';
+import 'package:helm/domain/models/github_telemetry.dart';
+import 'package:helm/domain/models/github_user.dart';
+import 'package:helm/core/constants/seed_data.dart';
 
 void main() {
   group('Project State & Philosophy Tests', () {
@@ -59,26 +59,23 @@ void main() {
       expect(pulse.nextActionText, 'Finish liability calculations');
     });
 
-    test('Seed portfolio contains real projects with honest empty states', () {
+    test('Sample portfolio contains clean illustrative projects with honest empty states', () {
       final initialProjects = SeedData.getInitialProjects();
       expect(initialProjects.isNotEmpty, isTrue);
 
       final names = initialProjects.map((p) => p.name).toList();
-      expect(names.contains('Prime'), isTrue);
-      expect(names.contains('P² Studio'), isTrue);
-      expect(names.contains('Curio'), isTrue);
-      expect(names.contains('Nook'), isTrue);
-      expect(names.contains('Wayfarer'), isTrue);
-      expect(names.contains('WAYFINDER'), isTrue);
-      expect(names.contains('HEARTBEAT'), isTrue);
+      expect(names.contains('Apex Mobile'), isTrue);
+      expect(names.contains('Nexus API Gateway'), isTrue);
+      expect(names.contains('Compass CLI'), isTrue);
+      expect(names.contains('Horizon Studio'), isTrue);
 
       // Verify honest empty states on unconnected projects
-      final heartbeat = initialProjects.firstWhere((p) => p.name == 'HEARTBEAT');
-      expect(heartbeat.humanStatus, isNull);
-      expect(heartbeat.statusDisplay, 'Status not set');
-      expect(heartbeat.github, isNull);
-      expect(heartbeat.nextActionDisplay, 'No next action defined');
-      expect(heartbeat.milestoneDisplay, 'No milestones yet');
+      final horizon = initialProjects.firstWhere((p) => p.name == 'Horizon Studio');
+      expect(horizon.humanStatus, isNull);
+      expect(horizon.statusDisplay, 'Status not set');
+      expect(horizon.github, isNull);
+      expect(horizon.nextActionDisplay, 'No next action defined');
+      expect(horizon.milestoneDisplay, 'No milestones yet');
     });
 
     test('GitHubUser and GitHubRepositoryInfo parse JSON accurately', () {

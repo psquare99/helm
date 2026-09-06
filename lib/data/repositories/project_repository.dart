@@ -63,10 +63,8 @@ class LocalFileProjectRepository implements ProjectRepository {
       debugPrint('Error reading stored projects: $e');
     }
 
-    // Default to seeded real project portfolio
-    final initial = SeedData.getInitialProjects();
-    await saveProjects(initial);
-    return initial;
+    // Default to clean empty state for new users
+    return [];
   }
 
   @override

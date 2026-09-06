@@ -154,7 +154,7 @@ class CommandHeader extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         const Text(
-          'PROJECT MANAGER',
+          'HELM',
           style: TextStyle(
             fontFamily: CommandTheme.fontMono,
             fontSize: 13,
@@ -507,23 +507,26 @@ class CommandHeader extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: PortfolioViewMode.values.map((mode) {
           final isSelected = controller.viewMode == mode;
-          return InkWell(
-            onTap: () => controller.setViewMode(mode),
-            borderRadius: BorderRadius.circular(3),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? CommandColors.surfaceRaised
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(3),
-              ),
-              child: Icon(
-                mode.icon,
-                size: 14,
-                color: isSelected
-                    ? CommandColors.signalIce
-                    : CommandColors.textMuted,
+          return Tooltip(
+            message: mode.label,
+            child: InkWell(
+              onTap: () => controller.setViewMode(mode),
+              borderRadius: BorderRadius.circular(3),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? CommandColors.surfaceRaised
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: Icon(
+                  mode.icon,
+                  size: 14,
+                  color: isSelected
+                      ? CommandColors.signalIce
+                      : CommandColors.textMuted,
+                ),
               ),
             ),
           );

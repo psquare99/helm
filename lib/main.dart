@@ -21,7 +21,7 @@ class ProjectManagerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Project Manager // P² System',
+      title: 'Helm',
       debugShowCheckedModeBanner: false,
       theme: CommandTheme.lightTheme,
       home: controller.hasCompletedOnboarding
