@@ -160,11 +160,21 @@ class _GitHubDeviceLoginDialogState extends State<GitHubDeviceLoginDialog>
   Future<void> _copyAndOpen() async {
     if (_deviceCode == null) return;
     await Clipboard.setData(ClipboardData(text: _deviceCode!.userCode));
-    setState(() => _copied = true);
+    if (mounted) setState(() => _copied = true);
 
     final uri = Uri.parse(_deviceCode!.verificationUri);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+    } catch (_) {
+      try {
+        await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+      } catch (_) {}
     }
   }
 
@@ -348,8 +358,8 @@ class _GitHubDeviceLoginDialogState extends State<GitHubDeviceLoginDialog>
         const SizedBox(height: 16),
 
         const Text(
-          '1. Enter this one-time code on GitHub:\n'
-          '2. Click Authorize to connect Helm.',
+          '1. Go to github.com/login/device in your browser\n'
+          '2. Enter the code below and tap Authorize',
           style: TextStyle(
             fontFamily: CommandTheme.fontSans,
             fontSize: 13,
